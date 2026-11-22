@@ -2,18 +2,24 @@ package com.xiaod.player;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -111,6 +117,96 @@ public class MainActivity extends AppCompatActivity implements PlayerManager.Lis
         rvLyrics.setLayoutManager(new LinearLayoutManager(this));
         lyricsAdapter = new LyricsAdapter();
         rvLyrics.setAdapter(lyricsAdapter);
+
+        setupSwipeToDelete();
+    }
+
+    /**
+     * 左滑或右滑歌曲列表 → 显示红色“删除”背景，松手后移除该歌曲。
+     */
+    private void setupSwipeToDelete() {
+        ItemTouchHelper.SimpleCallback callback =
+                new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+                    @Override
+                    public boolean onMove(@NonNull RecyclerView recyclerView,
+                                          @NonNull RecyclerView.ViewHolder viewHolder,
+                                          @NonNull RecyclerView.ViewHolder target) {
+                        return false;
+                    }
+
+                    @Override
+                    public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                        int position = viewHolder.getAdapterPosition();
+                        if (position != RecyclerView.NO_POSITION) {
+                            removeSongAt(position);
+                        }
+                    }
+
+                    @Override
+                    public void onChildDraw(@NonNull Canvas canvas, @NonNull RecyclerView recyclerView,
+                                            @NonNull RecyclerView.ViewHolder viewHolder,
+                                            float dX, float dY, int actionState, boolean isCurrentlyActive) {
+                        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+                            View item = viewHolder.itemView;
+                            Paint background = new Paint();
+                            background.setColor(ContextCompat.getColor(MainActivity.this, R.color.danger));
+                            if (dX > 0) {
+                                canvas.drawRect(item.getLeft(), item.getTop(),
+                                        item.getLeft() + dX, item.getBottom(), background);
+                            } else {
+                                canvas.drawRect(item.getRight() + dX, item.getTop(),
+                                        item.getRight(), item.getBottom(), background);
+                            }
+
+                            Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                            textPaint.setColor(Color.WHITE);
+                            textPaint.setTextSize(dp(15));
+                            textPaint.setTextAlign(dX > 0 ? Paint.Align.LEFT : Paint.Align.RIGHT);
+                            float margin = dp(24);
+                            float x = dX > 0 ? item.getLeft() + margin : item.getRight() - margin;
+                            float y = item.getTop() + item.getHeight() / 2f + dp(5);
+                            canvas.drawText("删除", x, y, textPaint);
+                        }
+                        super.onChildDraw(canvas, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+                    }
+                };
+        new ItemTouchHelper(callback).attachToRecyclerView(rvSongs);
+    }
+
+    private float dp(float value) {
+        return value * getResources().getDisplayMetrics().density;
+    }
+
+    private void removeSongAt(int position) {
+        if (position < 0 || position >= songs.size()) {
+            return;
+        }
+        Song removed = songs.remove(position);
+        songAdapter.removeItem(position);
+        tvListTitle.setText("本地音乐 (" + songs.size() + ")");
+
+        // 播放器内部列表同步移除；若正好是当前歌曲，会自动切到下一首
+        player.removeAt(position);
+        songAdapter.setCurrentIndex(player.getIndex());
+        toast("已移除《" + removed.title + "》");
+
+        if (songs.isEmpty()) {
+            resetEmptyUi();
+        }
+    }
+
+    private void resetEmptyUi() {
+        tvNowTitle.setText(R.string.app_name);
+        tvNowArtist.setText("播放列表已清空，点右上角重新扫描");
+        tvCurrent.setText("00:00");
+        tvTotal.setText("00:00");
+        seekBar.setProgress(0);
+        lyricsSynced = false;
+        lyricsSeq++;
+        lyricsAdapter.submit(new ArrayList<>());
+        tvLyricsStatus.setText("点击展开");
+        setLyricsExpanded(false);
+        btnPlay.setImageResource(R.drawable.ic_play);
     }
 
     private void setupControls() {
@@ -207,9 +303,9 @@ public class MainActivity extends AppCompatActivity implements PlayerManager.Lis
                 songAdapter.setCurrentIndex(player.getIndex());
 
                 if (songs.isEmpty()) {
-                    toast("没有扫描到本地音乐，请确认手机里有音频文件");
+                    toast("没有扫描到 MP3 音乐，请确认手机里有 .mp3 文件");
                 } else {
-                    toast("扫描完成，共 " + songs.size() + " 首");
+                    toast("扫描完成，共 " + songs.size() + " 首 MP3");
                 }
             });
         }, "music-scan").start();
@@ -251,6 +347,16 @@ public class MainActivity extends AppCompatActivity implements PlayerManager.Lis
         rvLyrics.setVisibility(expanded ? View.VISIBLE : View.GONE);
         tvLyricsToggle.setText(expanded ? "收起 ▴" : "展开 ▾");
         userCollapsedLyrics = !expanded;
+
+        // 展开歌词时：歌词区占 2 份高度、歌曲列表占 1 份；收起时歌词区归零，列表占满
+        LinearLayout.LayoutParams lyricParams = (LinearLayout.LayoutParams) rvLyrics.getLayoutParams();
+        LinearLayout.LayoutParams listParams = (LinearLayout.LayoutParams) rvSongs.getLayoutParams();
+        lyricParams.height = 0;
+        lyricParams.weight = expanded ? 2f : 0f;
+        listParams.weight = 1f;
+        rvLyrics.setLayoutParams(lyricParams);
+        rvSongs.setLayoutParams(listParams);
+
         if (expanded) {
             scrollToCurrentLyric(false);
         }
