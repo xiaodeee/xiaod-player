@@ -10,9 +10,10 @@ import android.provider.MediaStore;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * 扫描系统媒体库中的本地音乐。只有用户点击“扫描”时才会调用。
+ * 扫描系统媒体库中的本地音乐，只保留 MP3。只有用户点击“扫描”时才会调用。
  */
 public final class MusicScanner {
 
@@ -33,7 +34,8 @@ public final class MusicScanner {
                 MediaStore.Audio.Media.ARTIST,
                 MediaStore.Audio.Media.ALBUM,
                 MediaStore.Audio.Media.DURATION,
-                MediaStore.Audio.Media.DISPLAY_NAME
+                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.MIME_TYPE
         };
 
         String selection = MediaStore.Audio.Media.IS_MUSIC + " != 0";
@@ -50,6 +52,7 @@ public final class MusicScanner {
             int albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM);
             int durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
             int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME);
+            int mimeCol = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE);
 
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(idCol);
@@ -59,9 +62,16 @@ public final class MusicScanner {
                     continue;
                 }
 
+                String displayName = cursor.getString(nameCol);
+                String mime = mimeCol >= 0 ? cursor.getString(mimeCol) : null;
+                if (!isMp3(displayName, mime)) {
+                    // 只扫描 MP3，跳过 flac、wav、m4a 等其他格式
+                    continue;
+                }
+
                 String title = cursor.getString(titleCol);
                 if (title == null || title.trim().isEmpty()) {
-                    title = stripExtension(cursor.getString(nameCol));
+                    title = stripExtension(displayName);
                 }
 
                 String artist = cursor.getString(artistCol);
@@ -82,6 +92,16 @@ public final class MusicScanner {
         }
 
         return songs;
+    }
+
+    /**
+     * 文件名以 .mp3 结尾，或 MIME 为 audio/mpeg，即视为 MP3。
+     */
+    private static boolean isMp3(String displayName, String mimeType) {
+        if (displayName != null && displayName.toLowerCase(Locale.ROOT).endsWith(".mp3")) {
+            return true;
+        }
+        return mimeType != null && mimeType.equalsIgnoreCase("audio/mpeg");
     }
 
     private static String stripExtension(String name) {

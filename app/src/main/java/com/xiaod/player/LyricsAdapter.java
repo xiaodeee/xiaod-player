@@ -67,7 +67,7 @@ public class LyricsAdapter extends RecyclerView.Adapter<LyricsAdapter.VH> {
         boolean active = position == highlighted;
         view.setTextColor(ContextCompat.getColor(view.getContext(),
                 active ? R.color.accent : R.color.text_secondary));
-        view.setTextSize(active ? 16f : 13.5f);
+        view.setTextSize(active ? 20f : 16f);
         view.setTypeface(Typeface.DEFAULT, active ? Typeface.BOLD : Typeface.NORMAL);
     }
 

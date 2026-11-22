@@ -44,6 +44,19 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.VH> {
         return currentIndex;
     }
 
+    public void removeItem(int position) {
+        if (position < 0 || position >= data.size()) {
+            return;
+        }
+        data.remove(position);
+        if (position < currentIndex) {
+            currentIndex--;
+        } else if (position == currentIndex) {
+            currentIndex = -1;
+        }
+        notifyItemRemoved(position);
+    }
+
     public void setCurrentIndex(int index) {
         if (currentIndex == index) {
             return;
