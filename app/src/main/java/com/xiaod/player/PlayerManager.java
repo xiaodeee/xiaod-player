@@ -132,6 +132,46 @@ public class PlayerManager {
         return index;
     }
 
+    /**
+     * 从播放列表中移除一首歌。
+     * 如果移除的是正在播放的歌：正在播则接着播下一首，暂停中则切换到下一首但不自动开始。
+     */
+    public void removeAt(int position) {
+        if (position < 0 || position >= playlist.size()) {
+            return;
+        }
+        boolean removingCurrent = position == index;
+        boolean wasPlaying = isPlaying() || preparing;
+        playlist.remove(position);
+
+        if (playlist.isEmpty()) {
+            stopInternal();
+            index = -1;
+            notifyPlaying(false);
+            return;
+        }
+
+        if (position < index) {
+            index--;
+            return;
+        }
+
+        if (removingCurrent) {
+            stopInternal();
+            index = Math.min(position, playlist.size() - 1);
+            if (wasPlaying) {
+                startCurrent();
+            } else {
+                Song song = currentSong();
+                if (listener != null && song != null) {
+                    listener.onSongChanged(song, index);
+                    listener.onProgress(0, song.duration);
+                }
+                notifyPlaying(false);
+            }
+        }
+    }
+
     public Song currentSong() {
         if (index >= 0 && index < playlist.size()) {
             return playlist.get(index);
