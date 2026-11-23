@@ -58,14 +58,12 @@ public final class MusicScanner {
                 long id = cursor.getLong(idCol);
                 long duration = cursor.getLong(durationCol);
                 if (duration <= 0) {
-                    // 跳过损坏或只有几毫秒的音频文件
                     continue;
                 }
 
                 String displayName = cursor.getString(nameCol);
                 String mime = mimeCol >= 0 ? cursor.getString(mimeCol) : null;
                 if (!isMp3(displayName, mime)) {
-                    // 只扫描 MP3，跳过 flac、wav、m4a 等其他格式
                     continue;
                 }
 
@@ -85,7 +83,8 @@ public final class MusicScanner {
                 }
 
                 Uri uri = ContentUris.withAppendedId(collection, id);
-                songs.add(new Song(id, title, artist, album, duration, uri));
+                String fileName = displayName == null ? title : displayName;
+                songs.add(new Song(id, title, artist, album, fileName, duration, uri));
             }
         } catch (Exception ignored) {
             // 某些机型媒体库查询可能抛出异常，返回已扫描到的结果
