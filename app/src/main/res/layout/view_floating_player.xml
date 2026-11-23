@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="270dp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_floating"
+    android:elevation="8dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="4dp"
+    android:paddingEnd="6dp"
+    android:paddingBottom="4dp">
+
+    <TextView
+        android:id="@+id/tv_float_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="小d播放器"
+        android:textColor="@color/text_primary"
+        android:textSize="13sp" />
+
+    <ImageButton
+        android:id="@+id/btn_float_play"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="播放/暂停"
+        android:padding="7dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_play"
+        android:tint="@color/accent" />
+
+    <ImageButton
+        android:id="@+id/btn_float_next"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="下一首"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_next"
+        android:tint="@color/text_primary" />
+
+    <TextView
+        android:id="@+id/btn_float_close"
+        android:layout_width="26dp"
+        android:layout_height="34dp"
+        android:contentDescription="关闭悬浮窗"
+        android:gravity="center"
+        android:text="×"
+        android:textColor="@color/text_secondary"
+        android:textSize="16sp" />
+</LinearLayout>
