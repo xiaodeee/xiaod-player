@@ -230,12 +230,6 @@ public class MainActivity extends AppCompatActivity implements PlayerManager.Lis
             }
         });
 
-        findViewById(R.id.btn_prev).setOnClickListener(v -> {
-            if (ensurePlaylist()) {
-                player.prev();
-            }
-        });
-
         findViewById(R.id.btn_next).setOnClickListener(v -> {
             if (ensurePlaylist()) {
                 player.next();
