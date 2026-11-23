@@ -32,7 +32,6 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.VH> {
         if (songs != null) {
             data.addAll(songs);
         }
-        currentIndex = -1;
         notifyDataSetChanged();
     }
 
@@ -82,7 +81,14 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.VH> {
     public void onBindViewHolder(@NonNull VH holder, int position) {
         Song song = data.get(position);
         holder.title.setText(song.title);
-        holder.info.setText(song.artist + " · " + song.album);
+        String info = song.infoText();
+        if (info.isEmpty()) {
+            // 歌手、专辑都是未知时不显示这一行，列表更干净
+            holder.info.setVisibility(View.GONE);
+        } else {
+            holder.info.setVisibility(View.VISIBLE);
+            holder.info.setText(info);
+        }
         holder.duration.setText(formatDuration(song.duration));
 
         boolean isCurrent = position == currentIndex;

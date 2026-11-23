@@ -10,10 +10,9 @@ import android.provider.MediaStore;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * 扫描系统媒体库中的本地音乐，只保留 MP3。只有用户点击“扫描”时才会调用。
+ * 扫描系统媒体库中的本地音乐。只有用户点击“扫描”时才会调用。
  */
 public final class MusicScanner {
 
@@ -38,6 +37,7 @@ public final class MusicScanner {
                 MediaStore.Audio.Media.MIME_TYPE
         };
 
+        // 只保留 MP3：MIME 为 audio/mpeg，或文件名以 .mp3 结尾
         String selection = MediaStore.Audio.Media.IS_MUSIC + " != 0";
         String sortOrder = MediaStore.Audio.Media.TITLE + " ASC";
 
@@ -58,18 +58,25 @@ public final class MusicScanner {
                 long id = cursor.getLong(idCol);
                 long duration = cursor.getLong(durationCol);
                 if (duration <= 0) {
+                    // 跳过损坏或只有几毫秒的音频文件
                     continue;
                 }
 
                 String displayName = cursor.getString(nameCol);
                 String mime = mimeCol >= 0 ? cursor.getString(mimeCol) : null;
                 if (!isMp3(displayName, mime)) {
+                    // 只扫描 MP3，跳过 flac、wav、m4a 等其他格式
                     continue;
                 }
 
                 String title = cursor.getString(titleCol);
                 if (title == null || title.trim().isEmpty()) {
                     title = stripExtension(displayName);
+                }
+
+                // 手机自带的品牌主题曲（如“荣耀主题曲”）无法删除，扫描时统一排除
+                if (isBrandThemeSong(title, displayName)) {
+                    continue;
                 }
 
                 String artist = cursor.getString(artistCol);
@@ -93,14 +100,26 @@ public final class MusicScanner {
         return songs;
     }
 
-    /**
-     * 文件名以 .mp3 结尾，或 MIME 为 audio/mpeg，即视为 MP3。
-     */
     private static boolean isMp3(String displayName, String mimeType) {
-        if (displayName != null && displayName.toLowerCase(Locale.ROOT).endsWith(".mp3")) {
+        if (displayName != null && displayName.toLowerCase(java.util.Locale.ROOT).endsWith(".mp3")) {
             return true;
         }
         return mimeType != null && mimeType.equalsIgnoreCase("audio/mpeg");
+    }
+
+    /**
+     * 排除手机内置的品牌主题曲：歌名或文件名里带“荣耀”“主题曲”的一律不收录。
+     */
+    private static boolean isBrandThemeSong(String title, String displayName) {
+        return containsKeyword(title) || containsKeyword(displayName);
+    }
+
+    private static boolean containsKeyword(String value) {
+        if (value == null) {
+            return false;
+        }
+        String text = value.toLowerCase(java.util.Locale.ROOT);
+        return text.contains("荣耀") || text.contains("主题曲");
     }
 
     private static String stripExtension(String name) {
