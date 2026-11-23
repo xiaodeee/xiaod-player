@@ -25,4 +25,38 @@ public class Song {
         this.duration = duration;
         this.uri = uri;
     }
+
+    public boolean hasArtist() {
+        return !isUnknown(artist, "未知歌手");
+    }
+
+    public boolean hasAlbum() {
+        return !isUnknown(album, "未知专辑");
+    }
+
+    /**
+     * “歌手 · 专辑”：未知的一方直接省略，两边都未知时返回空串，界面据此隐藏该行。
+     */
+    public String infoText() {
+        String artistText = hasArtist() ? artist.trim() : "";
+        String albumText = hasAlbum() ? album.trim() : "";
+        if (!artistText.isEmpty() && !albumText.isEmpty()) {
+            return artistText + " · " + albumText;
+        }
+        if (!artistText.isEmpty()) {
+            return artistText;
+        }
+        return albumText;
+    }
+
+    private static boolean isUnknown(String value, String placeholder) {
+        if (value == null) {
+            return true;
+        }
+        String text = value.trim();
+        return text.isEmpty()
+                || placeholder.equals(text)
+                || "<unknown>".equalsIgnoreCase(text)
+                || "未知".equals(text);
+    }
 }

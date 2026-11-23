@@ -9,9 +9,11 @@ import android.os.Looper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 全局唯一的播放控制器：负责播放/暂停、上下曲、三种播放模式与进度回调。
+ * 支持多个监听者：主界面 + 系统悬浮窗可以同时显示和控制。
  */
 public class PlayerManager {
 
@@ -41,8 +43,9 @@ public class PlayerManager {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
 
+    private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
+
     private MediaPlayer player;
-    private Listener listener;
     private int index = -1;
     private Mode mode = Mode.LOOP_LIST;
     private boolean preparing;
@@ -50,9 +53,13 @@ public class PlayerManager {
     private final Runnable progressTicker = new Runnable() {
         @Override
         public void run() {
-            if (player != null && listener != null) {
+            if (player != null) {
                 try {
-                    listener.onProgress(player.getCurrentPosition(), player.getDuration());
+                    long position = player.getCurrentPosition();
+                    long duration = player.getDuration();
+                    for (Listener listener : listeners) {
+                        listener.onProgress(position, duration);
+                    }
                 } catch (IllegalStateException ignored) {
                     // 播放器正在切换状态，忽略这一帧
                 }
@@ -72,10 +79,15 @@ public class PlayerManager {
         return sInstance;
     }
 
+    /**
+     * 主界面的监听：注册时先回填一次当前状态，保证新界面不会空白。
+     */
     public void setListener(Listener listener) {
-        this.listener = listener;
         if (listener == null) {
             return;
+        }
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
         }
         Song current = currentSong();
         if (current != null) {
@@ -89,6 +101,19 @@ public class PlayerManager {
                 // 尚未 prepare 完成
             }
         }
+    }
+
+    /**
+     * 悬浮窗等附加监听：只接收状态变化，不做状态回填。
+     */
+    public void addListener(Listener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    public void removeListener(Listener listener) {
+        listeners.remove(listener);
     }
 
     public List<Song> getPlaylist() {
@@ -122,9 +147,7 @@ public class PlayerManager {
         } else {
             stopInternal();
             index = -1;
-            if (listener != null) {
-                listener.onPlayStateChanged(false);
-            }
+            notifyPlaying(false);
         }
     }
 
@@ -163,9 +186,11 @@ public class PlayerManager {
                 startCurrent();
             } else {
                 Song song = currentSong();
-                if (listener != null && song != null) {
-                    listener.onSongChanged(song, index);
-                    listener.onProgress(0, song.duration);
+                if (song != null) {
+                    notifySongChanged(song, index);
+                    for (Listener listener : listeners) {
+                        listener.onProgress(0, song.duration);
+                    }
                 }
                 notifyPlaying(false);
             }
@@ -253,9 +278,7 @@ public class PlayerManager {
             player.setDataSource(appContext, song.uri);
             player.prepareAsync();
             // 先通知界面换歌，歌词页可以立即开始搜索
-            if (listener != null) {
-                listener.onSongChanged(song, index);
-            }
+            notifySongChanged(song, index);
             notifyPlaying(false);
         } catch (Exception e) {
             stopInternal();
@@ -304,7 +327,7 @@ public class PlayerManager {
         if (mode == Mode.SHUFFLE) {
             playAt(randomOther());
         } else {
-            playAt(index + 1 >= playlist.size() ? 0 : index + 1);
+            playAt((index + 1 >= playlist.size() ? 0 : index + 1));
         }
     }
 
@@ -413,20 +436,26 @@ public class PlayerManager {
 
     public void release() {
         stopInternal();
-        listener = null;
+        listeners.clear();
         playlist.clear();
         index = -1;
         sInstance = null;
     }
 
+    private void notifySongChanged(Song song, int position) {
+        for (Listener listener : listeners) {
+            listener.onSongChanged(song, position);
+        }
+    }
+
     private void notifyPlaying(boolean playing) {
-        if (listener != null) {
+        for (Listener listener : listeners) {
             listener.onPlayStateChanged(playing);
         }
     }
 
     private void notifyError(String message) {
-        if (listener != null) {
+        for (Listener listener : listeners) {
             listener.onError(message);
         }
     }
