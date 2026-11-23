@@ -129,20 +129,9 @@
             android:orientation="horizontal">
 
             <ImageButton
-                android:id="@+id/btn_prev"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="上一首"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_prev"
-                android:tint="@color/text_primary" />
-
-            <ImageButton
                 android:id="@+id/btn_play"
                 android:layout_width="56dp"
                 android:layout_height="56dp"
-                android:layout_marginStart="18dp"
                 android:layout_marginEnd="18dp"
                 android:background="@drawable/bg_play"
                 android:contentDescription="播放/暂停"
